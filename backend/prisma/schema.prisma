@@ -14,6 +14,10 @@ model User {
   email     String   @unique
   password  String
   role      String   @default("user")
+  phone     String   @default("")
+  city      String   @default("")
+  profilePicture String @default("")
+  dietaryPreference String @default("")
   createdAt DateTime @default(now())
 
   bookings    Booking[]
@@ -65,6 +69,7 @@ model RestaurantTable {
   isBestseller Boolean    @default(false)
   positionX    Float      @default(0)
   positionY    Float      @default(0)
+  description  String     @default("")
 
   bookings     Booking[]
 }

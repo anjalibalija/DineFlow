@@ -277,35 +277,51 @@ exports.geocodeAddress = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Address is required.' });
   }
 
-  const apiKey = process.env.POSITIONSTACK_API_KEY;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ success: false, message: 'Positionstack API key is not configured.' });
+    return res.status(500).json({ success: false, message: 'Google Maps API key is not configured.' });
   }
 
   try {
     const axios = require('axios');
-    const response = await axios.get('http://api.positionstack.com/v1/forward', {
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
       params: {
-        access_key: apiKey,
-        query: address,
-        limit: 1
+        address: address,
+        key: apiKey
       }
     });
 
-    if (response.data && response.data.data && response.data.data.length > 0) {
-      const result = response.data.data[0];
+    if (response.data && response.data.status === 'OK' && response.data.results && response.data.results.length > 0) {
+      const result = response.data.results[0];
+      
+      let city = '';
+      let state = '';
+      if (result.address_components) {
+        for (const comp of result.address_components) {
+          if (comp.types.includes('locality')) {
+            city = comp.long_name;
+          } else if (!city && comp.types.includes('administrative_area_level_2')) {
+            city = comp.long_name;
+          }
+          if (comp.types.includes('administrative_area_level_1')) {
+            state = comp.long_name;
+          }
+        }
+      }
+
       res.status(200).json({
         success: true,
         data: {
-          latitude: result.latitude,
-          longitude: result.longitude,
-          label: result.label,
-          city: result.locality || result.city || '',
-          state: result.region || ''
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng,
+          label: result.formatted_address,
+          city: city,
+          state: state
         }
       });
     } else {
-      res.status(404).json({ success: false, message: 'No location coordinates found for the given address.' });
+      const statusMsg = response.data ? response.data.status : 'No data';
+      res.status(404).json({ success: false, message: `No location coordinates found for the given address (Status: ${statusMsg}).` });
     }
   } catch (err) {
     console.error('Geocoding error:', err.message);
@@ -319,33 +335,49 @@ exports.reverseGeocode = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Latitude and longitude are required.' });
   }
 
-  const apiKey = process.env.POSITIONSTACK_API_KEY;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ success: false, message: 'Positionstack API key is not configured.' });
+    return res.status(500).json({ success: false, message: 'Google Maps API key is not configured.' });
   }
 
   try {
     const axios = require('axios');
-    const response = await axios.get('http://api.positionstack.com/v1/reverse', {
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
       params: {
-        access_key: apiKey,
-        query: `${latitude},${longitude}`,
-        limit: 1
+        latlng: `${latitude},${longitude}`,
+        key: apiKey
       }
     });
 
-    if (response.data && response.data.data && response.data.data.length > 0) {
-      const result = response.data.data[0];
+    if (response.data && response.data.status === 'OK' && response.data.results && response.data.results.length > 0) {
+      const result = response.data.results[0];
+      
+      let city = '';
+      let state = '';
+      if (result.address_components) {
+        for (const comp of result.address_components) {
+          if (comp.types.includes('locality')) {
+            city = comp.long_name;
+          } else if (!city && comp.types.includes('administrative_area_level_2')) {
+            city = comp.long_name;
+          }
+          if (comp.types.includes('administrative_area_level_1')) {
+            state = comp.long_name;
+          }
+        }
+      }
+
       res.status(200).json({
         success: true,
         data: {
-          city: result.locality || result.city || '',
-          state: result.region || '',
-          label: result.label || ''
+          city: city,
+          state: state,
+          label: result.formatted_address || ''
         }
       });
     } else {
-      res.status(404).json({ success: false, message: 'No location details found for these coordinates.' });
+      const statusMsg = response.data ? response.data.status : 'No data';
+      res.status(404).json({ success: false, message: `No location details found for these coordinates (Status: ${statusMsg}).` });
     }
   } catch (err) {
     console.error('Reverse geocoding error:', err.message);

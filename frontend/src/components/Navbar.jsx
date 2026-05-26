@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Utensils, LogOut, User, Shield } from 'lucide-react';
+import { Utensils, LogOut, User, Shield, Settings } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -34,10 +34,10 @@ const Navbar = () => {
                   <User size={18} /> My Bookings
                 </Link>
               )}
+              <Link to="/profile" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
+                <Settings size={16} /> Profile
+              </Link>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-brown-700/60 bg-cream-200 px-2.5 py-1 rounded-full">
-                  {isAdmin ? '👑 Admin' : '🍽️ Diner'}
-                </span>
                 <button 
                   onClick={handleLogout}
                   className="flex items-center gap-1 bg-brown-900 text-cream-100 px-4 py-2 rounded-full hover:bg-gold-500 hover:text-brown-900 transition-colors cursor-pointer"

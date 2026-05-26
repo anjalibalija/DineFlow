@@ -15,6 +15,7 @@ import TableBlueprintPage from './pages/TableBlueprintPage';
 import Dashboard from './pages/Dashboard';
 import PuzzlePage from './pages/PuzzlePage';
 import AdminDashboard from './pages/AdminDashboard';
+import ProfilePage from './pages/ProfilePage';
 
 // Private route: requires any logged-in user
 const PrivateRoute = ({ children }) => {
@@ -79,6 +80,13 @@ function AppRoutes() {
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
+          } />
+
+          {/* Profile route */}
+          <Route path="/profile" element={
+            <PrivateRoute>
+              <ProfilePage />
+            </PrivateRoute>
           } />
 
           {/* Catch-all redirect */}

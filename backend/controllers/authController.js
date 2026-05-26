@@ -99,3 +99,58 @@ exports.getMe = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, phone, city, profilePicture, dietaryPreference } = req.body;
+    
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        name: name !== undefined ? name : undefined,
+        phone: phone !== undefined ? phone : undefined,
+        city: city !== undefined ? city : undefined,
+        profilePicture: profilePicture !== undefined ? profilePicture : undefined,
+        dietaryPreference: dietaryPreference !== undefined ? dietaryPreference : undefined
+      }
+    });
+
+    updatedUser.password = undefined;
+    res.status(200).json({ success: true, data: updatedUser });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Please provide current and new passwords.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashedPassword }
+    });
+
+    res.status(200).json({ success: true, message: 'Password updated successfully.' });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
