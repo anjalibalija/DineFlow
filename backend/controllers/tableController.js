@@ -8,6 +8,7 @@ exports.getTablesByRestaurant = async (req, res) => {
     }
     const tables = await prisma.restaurantTable.findMany({
       where: query,
+      include: { bookings: true },
       orderBy: { tableNumber: 'asc' }
     });
     res.status(200).json({ success: true, count: tables.length, data: tables });
@@ -39,6 +40,7 @@ exports.createTable = async (req, res) => {
         tableNumber,
         category,
         capacity: parseInt(capacity, 10),
+        description: req.body.description || '',
         positionX: req.body.positionX ? parseFloat(req.body.positionX) : 0,
         positionY: req.body.positionY ? parseFloat(req.body.positionY) : 0
       }

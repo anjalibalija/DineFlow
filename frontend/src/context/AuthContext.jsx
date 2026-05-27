@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
       delete axios.defaults.headers.common['Authorization'];
       localStorage.removeItem('token');
       localStorage.removeItem('role');
+      setUser(null);
       setLoading(false);
     }
   }, [token]);
@@ -43,18 +44,36 @@ export const AuthProvider = ({ children }) => {
     const payload = { email, password };
     if (role) payload.role = role;
     const res = await axios.post('/api/auth/login', payload);
-    setToken(res.data.token);
-    setUser(res.data.user);
-    localStorage.setItem('role', res.data.user.role);
-    return res.data.user;
+    if (!res.data.require2FA) {
+      setToken(res.data.token);
+      setUser(res.data.user);
+      localStorage.setItem('role', res.data.user.role);
+    }
+    return res.data;
   };
 
-  const signup = async (name, email, password, role = 'user') => {
-    const res = await axios.post('/api/auth/signup', { name, email, password, role });
+  const signup = async (name, email, password, role = 'user', phone = '') => {
+    const res = await axios.post('/api/auth/signup', { name, email, password, role, phone });
     setToken(res.data.token);
     setUser(res.data.user);
     localStorage.setItem('role', res.data.user.role);
-    return res.data.user;
+    return res.data;
+  };
+
+  const verifyOtp = async (email, otpCode) => {
+    const res = await axios.post('/api/auth/verify-otp', { email, otpCode });
+    if (res.data.token && res.data.user) {
+      setToken(res.data.token);
+      setUser(res.data.user);
+      localStorage.setItem('role', res.data.user.role);
+    }
+    return res.data;
+  };
+
+  const toggle2FA = async (enabled) => {
+    const res = await axios.post('/api/auth/toggle-2fa', { enabled });
+    setUser(prev => prev ? { ...prev, twoFactorEnabled: enabled } : null);
+    return res.data;
   };
 
   const logout = () => {
@@ -68,7 +87,7 @@ export const AuthProvider = ({ children }) => {
   const isUser = user?.role === 'user';
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, isAdmin, isUser, loadUser, setUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, verifyOtp, toggle2FA, isAdmin, isUser, loadUser }}>
       {children}
     </AuthContext.Provider>
   );

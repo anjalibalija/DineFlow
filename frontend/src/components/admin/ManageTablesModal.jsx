@@ -132,32 +132,7 @@ const BlueprintEditor = ({ tables, restaurantId, onSavePositions }) => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Room landmarks */}
-        {/* 1. Window Side (Top) */}
-        <div className="absolute top-0 left-0 right-0 h-9 bg-black/35 border-b border-white/10 flex items-center justify-center text-gold-500/50 text-[10px] font-bold uppercase tracking-widest pointer-events-none select-none gap-2">
-          <span>🪟</span> Window Side (Scenic View)
-        </div>
-
-        {/* 2. Bar Area (Right) */}
-        <div className="absolute top-9 bottom-0 right-0 w-24 bg-black/25 border-l border-white/10 flex items-center justify-center text-gold-500/50 text-[10px] font-bold uppercase tracking-widest pointer-events-none select-none">
-          <span className="rotate-90 whitespace-nowrap">🥂 Bar & Lounge</span>
-        </div>
-
-        {/* 3. VIP Cabins (Left) */}
-        <div className="absolute top-9 bottom-0 left-0 w-24 bg-black/25 border-r border-white/10 flex items-center justify-center text-gold-500/50 text-[10px] font-bold uppercase tracking-widest pointer-events-none select-none">
-          <span className="-rotate-90 whitespace-nowrap">✨ VIP Private Cabins</span>
-        </div>
-
-        {/* 4. Center Area Label */}
-        <div className="absolute top-[52%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-cream-100/5 text-xl font-bold uppercase tracking-[0.2em] pointer-events-none select-none text-center">
-          Main Dining Hall
-        </div>
-
-        {/* 5. Entrance */}
-        <div className="absolute bottom-0 left-[calc(50%-48px)] w-24 h-1.5 bg-cream-200/30 rounded-t pointer-events-none select-none" />
-        <span className="absolute bottom-2.5 left-1/2 -translate-x-1/2 text-cream-200/30 text-[8px] uppercase tracking-widest font-bold pointer-events-none select-none">
-          Entrance
-        </span>
+        {/* Room landmarks removed */}
 
         {tables.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -210,7 +185,7 @@ const BlueprintEditor = ({ tables, restaurantId, onSavePositions }) => {
 // ─── Main Modal ─────────────────────────────────────────────────────────────
 const ManageTablesModal = ({ restaurant, onClose, onSuccess }) => {
   const [tables, setTables] = useState(restaurant.tables || []);
-  const [newTable, setNewTable] = useState({ tableNumber: '', category: 'Center', capacity: '2' });
+  const [newTable, setNewTable] = useState({ tableNumber: '', category: 'Center', capacity: '2', description: '' });
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
@@ -233,11 +208,12 @@ const ManageTablesModal = ({ restaurant, onClose, onSuccess }) => {
         tableNumber: newTable.tableNumber,
         category: newTable.category,
         capacity: parseInt(newTable.capacity, 10),
+        description: newTable.description || '',
         positionX: defaultX,
         positionY: defaultY
       });
       setTables([...tables, res.data.data]);
-      setNewTable({ tableNumber: '', category: 'Center', capacity: '2' });
+      setNewTable({ tableNumber: '', category: 'Center', capacity: '2', description: '' });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add table.');
     } finally {
@@ -303,48 +279,66 @@ const ManageTablesModal = ({ restaurant, onClose, onSuccess }) => {
           {tab === 'list' && (
             <>
               {/* Add new table */}
-              <div className="bg-cream-100 rounded-2xl p-5 mb-6">
-                <p className="text-xs font-bold text-brown-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <div className="bg-cream-100 rounded-2xl p-5 mb-6 space-y-3">
+                <p className="text-xs font-bold text-brown-800 uppercase tracking-widest flex items-center gap-2">
                   <Plus size={14} /> Add New Table
                 </p>
-                <div className="grid grid-cols-4 gap-3">
-                  <input
-                    value={newTable.tableNumber}
-                    onChange={e => setNewTable({ ...newTable, tableNumber: e.target.value })}
-                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                    className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
-                    placeholder="e.g. T1"
-                  />
-                  <select
-                    value={newTable.category}
-                    onChange={e => setNewTable({ ...newTable, category: e.target.value })}
-                    className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 appearance-none cursor-pointer"
-                  >
-                    {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <input
-                    type="number" min="1" max="20"
-                    value={newTable.capacity}
-                    onChange={e => setNewTable({ ...newTable, capacity: e.target.value })}
-                    className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
-                    placeholder="Seats"
-                  />
-                  <button
-                    onClick={handleAdd}
-                    disabled={adding}
-                    className="bg-brown-900 text-cream-100 rounded-xl text-sm font-bold hover:bg-gold-500 hover:text-brown-900 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    {adding
-                      ? <div className="w-4 h-4 border-2 border-cream-100/30 border-t-cream-100 rounded-full animate-spin" />
-                      : <><Plus size={14} /> Add</>
-                    }
-                  </button>
+                <div className="grid grid-cols-12 gap-3">
+                  <div className="col-span-3 flex flex-col gap-1">
+                    <label className="text-[10px] text-brown-600/70 font-bold uppercase">Table #</label>
+                    <input
+                      value={newTable.tableNumber}
+                      onChange={e => setNewTable({ ...newTable, tableNumber: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                      autoComplete="one-time-code"
+                      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
+                      placeholder="e.g. T1"
+                    />
+                  </div>
+                  <div className="col-span-4 flex flex-col gap-1">
+                    <label className="text-[10px] text-brown-600/70 font-bold uppercase">Category</label>
+                    <select
+                      value={newTable.category}
+                      onChange={e => setNewTable({ ...newTable, category: e.target.value })}
+                      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 appearance-none cursor-pointer"
+                    >
+                      {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1">
+                    <label className="text-[10px] text-brown-600/70 font-bold uppercase">Seats</label>
+                    <input
+                      type="number" min="1" max="20"
+                      value={newTable.capacity}
+                      onChange={e => setNewTable({ ...newTable, capacity: e.target.value })}
+                      autoComplete="one-time-code"
+                      className="px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
+                      placeholder="Seats"
+                    />
+                  </div>
+                  <div className="col-span-3 flex items-end">
+                    <button
+                      onClick={handleAdd}
+                      disabled={adding}
+                      className="w-full bg-brown-900 text-cream-100 rounded-xl text-sm font-bold hover:bg-gold-500 hover:text-brown-900 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1 py-2"
+                    >
+                      {adding
+                        ? <div className="w-4 h-4 border-2 border-cream-100/30 border-t-cream-100 rounded-full animate-spin" />
+                        : <><Plus size={14} /> Add Table</>
+                      }
+                    </button>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 gap-3 mt-1.5">
-                  <span className="text-[10px] text-brown-600/50 uppercase">Table #</span>
-                  <span className="text-[10px] text-brown-600/50 uppercase">Category</span>
-                  <span className="text-[10px] text-brown-600/50 uppercase">Capacity</span>
-                  <span />
+                <div className="flex flex-col gap-1 pt-1 border-t border-brown-900/5">
+                  <label className="text-[10px] text-brown-600/70 font-bold uppercase">Table Description (Ambiance, view details, etc.)</label>
+                  <input
+                    value={newTable.description}
+                    onChange={e => setNewTable({ ...newTable, description: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                    autoComplete="one-time-code"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500"
+                    placeholder="e.g., Cozy window seat with a panoramic view of the botanical gardens."
+                  />
                 </div>
               </div>
 
@@ -358,10 +352,15 @@ const ManageTablesModal = ({ restaurant, onClose, onSuccess }) => {
                 ) : tables.map(table => (
                   <motion.div key={table.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-4 py-3 hover:bg-cream-100/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-brown-900 w-10">{table.tableNumber}</span>
-                      <span className="text-xs bg-cream-200 text-brown-800 px-2.5 py-1 rounded-full font-medium">{table.category}</span>
-                      <span className="text-sm text-brown-700">{table.capacity} seats</span>
+                    <div className="flex flex-col gap-1 w-[70%] text-left">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-brown-900 w-10">{table.tableNumber}</span>
+                        <span className="text-xs bg-cream-200 text-brown-800 px-2.5 py-1 rounded-full font-medium">{table.category}</span>
+                        <span className="text-sm text-brown-700">{table.capacity} seats</span>
+                      </div>
+                      {table.description && (
+                        <p className="text-[11px] text-brown-600/70 italic pl-13">"{table.description}"</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {table.isBestseller && <span className="text-[10px] bg-gold-500/10 text-gold-500 px-2 py-0.5 rounded-full font-semibold">⭐ Bestseller</span>}

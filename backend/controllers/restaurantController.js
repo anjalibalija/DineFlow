@@ -61,6 +61,16 @@ exports.createRestaurant = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name, description, cuisine, and location are required.' });
     }
 
+    // Enforce single restaurant restriction per admin
+    const existingRestaurant = await prisma.restaurant.findFirst({
+      where: { adminId: req.user.id }
+    });
+    if (existingRestaurant) {
+      return res.status(400).json({ success: false, message: 'You have already registered a restaurant. Admins can only manage one restaurant.' });
+    }
+
+
+
     const restaurant = await prisma.restaurant.create({
       data: {
         name,
@@ -101,7 +111,7 @@ exports.updateRestaurant = async (req, res) => {
     }
 
     // Only the owning admin can update
-    if (restaurant.adminId && restaurant.adminId !== req.user.id) {
+    if (restaurant.adminId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'You can only edit your own restaurants.' });
     }
 
@@ -130,7 +140,7 @@ exports.deleteRestaurant = async (req, res) => {
     }
 
     // Only the owning admin can delete
-    if (restaurant.adminId && restaurant.adminId !== req.user.id) {
+    if (restaurant.adminId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'You can only delete your own restaurants.' });
     }
 

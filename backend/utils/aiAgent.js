@@ -184,7 +184,8 @@ exports.digitizeMenuImage = async (base64Data, mimeType) => {
       const cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
       return JSON.parse(cleanText);
     } catch (err) {
-      console.warn('Gemini Menu vision digitization failed, falling back to simulator:', err.message);
+      console.error('Gemini Menu vision digitization failed:', err.message);
+      throw new Error(`Gemini AI service failed: ${err.message}`);
     }
   }
 

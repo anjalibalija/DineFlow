@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Star, MapPin, Users, BrainCircuit, Clock, Utensils, Search, Sparkles, Heart, Check, Trash2, IndianRupee } from 'lucide-react';
+import { Star, MapPin, Users, BrainCircuit, Clock, Utensils, Search, Sparkles, Heart, Check, Trash2, IndianRupee, X, Gamepad2, Gift, Trophy, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RestaurantMap from '../components/RestaurantMap';
+import { useAuth } from '../context/AuthContext';
 
 const RestaurantDetail = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const [restaurant, setRestaurant] = useState(null);
   const [aiPrediction, setAiPrediction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,10 +17,17 @@ const RestaurantDetail = () => {
   const [selectedDishes, setSelectedDishes] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [userRating, setUserRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(null);
+  const [reviewComment, setReviewComment] = useState('');
 
   const menuItems = useMemo(() => {
     if (!restaurant?.menuHighlights) return [];
-    return restaurant.menuHighlights.split(',').map(h => {
+    // Split by either comma or newline
+    const itemsList = restaurant.menuHighlights.split(/[,\n]+/).map(h => h.trim()).filter(Boolean);
+    return itemsList.map(h => {
       const regex = /(.*?)(?:\((.*?)\))?:\s*(.*)/;
       const match = h.match(regex);
       if (match) {
@@ -78,6 +87,10 @@ const RestaurantDetail = () => {
         // Simulate fetching AI prediction
         const aiRes = await axios.post('/api/ai/crowd-prediction', { restaurantId: id });
         setAiPrediction(aiRes.data.data);
+
+        // Load reviews from backend API
+        const reviewsRes = await axios.get(`/api/reviews/restaurant/${id}`);
+        setReviews(reviewsRes.data.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -87,6 +100,44 @@ const RestaurantDetail = () => {
     fetchRestaurant();
   }, [id]);
 
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return restaurant?.rating || 0;
+    const total = reviews.reduce((sum, r) => sum + r.rating, 0);
+    return (total / reviews.length).toFixed(1);
+  }, [reviews, restaurant?.rating]);
+
+  const handleAddReview = async (e) => {
+    e.preventDefault();
+    if (!reviewComment) return;
+
+    if (!user) {
+      alert('You must be logged in to leave a review.');
+      return;
+    }
+
+    try {
+      const res = await axios.post('/api/reviews', {
+        restaurantId: id,
+        rating: userRating,
+        comment: reviewComment
+      });
+
+      if (res.data.success) {
+        // reload reviews
+        const reviewsRes = await axios.get(`/api/reviews/restaurant/${id}`);
+        setReviews(reviewsRes.data.data);
+        
+        // Reset fields & close modal
+        setReviewComment('');
+        setUserRating(5);
+        setShowReviewModal(false);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to submit review.');
+    }
+  };
+
   if (loading) return <div className="min-h-[60vh] flex items-center justify-center font-serif text-2xl text-brown-900">Loading details...</div>;
   if (!restaurant) return <div className="min-h-[60vh] flex items-center justify-center font-serif text-xl text-red-500">Restaurant not found.</div>;
 
@@ -94,8 +145,20 @@ const RestaurantDetail = () => {
     <div>
       {/* Hero Header */}
       <div className="relative h-[50vh] bg-brown-900 overflow-hidden">
+        
+        {/* Back to Dashboard Link overlay */}
+        <div className="absolute top-6 left-6 z-20">
+          <Link 
+            to="/restaurants" 
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-900/80 backdrop-blur-md border border-gold-500/20 text-xs font-semibold text-gold-500 hover:bg-gold-500 hover:text-stone-950 transition-all shadow-md group cursor-pointer"
+          >
+            <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+            Back to Dashboard
+          </Link>
+        </div>
+
         <img 
-          src="https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80" 
+          src={restaurant.image ? restaurant.image : "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"} 
           alt={restaurant.name}
           className="w-full h-full object-cover filter brightness-[0.5]"
         />
@@ -113,7 +176,7 @@ const RestaurantDetail = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Star size={20} className="text-gold-500 fill-gold-500" />
-                  <span className="font-bold">{restaurant.rating}</span> / 5.0
+                  <span className="font-bold">{averageRating}</span> / 5.0
                 </div>
                 <div className="flex items-center gap-2">
                   <IndianRupee size={18} className="text-gold-500" />
@@ -134,6 +197,65 @@ const RestaurantDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Queue Game Banner ── */}
+      <AnimatePresence>
+        {restaurant.queueCount > 5 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="relative overflow-hidden bg-gradient-to-r from-stone-950 via-stone-900 to-amber-950 border-b border-amber-900/30"
+          >
+            {/* Floating orbs */}
+            <div className="absolute -left-10 top-0 w-40 h-40 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute right-20 -bottom-6 w-32 h-32 rounded-full bg-amber-600/10 blur-2xl pointer-events-none" />
+
+            <div className="container mx-auto px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+              <div className="flex items-center gap-4">
+                {/* Pulsing icon */}
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping" />
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 relative">
+                    <Gamepad2 size={22} className="text-stone-900" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-serif font-black text-lg">Queue is busy!</span>
+                    <span className="bg-red-500/20 border border-red-400/30 text-red-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {restaurant.queueCount} waiting
+                    </span>
+                  </div>
+                  <p className="text-stone-400 text-sm">
+                    Play a quick game &amp; win <span className="text-amber-400 font-bold">20–30% off</span> your bill while you wait!
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="hidden sm:flex items-center gap-2">
+                  {['🍕','🃏','🏆'].map((e, i) => (
+                    <motion.span
+                      key={i}
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
+                      className="text-xl"
+                    >{e}</motion.span>
+                  ))}
+                </div>
+                <Link
+                  to="/puzzle"
+                  className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-stone-900 px-6 py-2.5 rounded-full font-black text-sm hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg shadow-amber-500/20 group"
+                >
+                  <Gift size={15} className="group-hover:rotate-12 transition-transform" />
+                  Play &amp; Win Coupon
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -177,6 +299,96 @@ const RestaurantDetail = () => {
               </section>
             )}
 
+            {/* Customer Reviews & Ratings */}
+            <section className="bg-white p-6 rounded-2xl border border-gold-500/10 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-2xl font-serif font-bold text-brown-900">Customer Ratings & Reviews</h3>
+                  <p className="text-sm text-brown-600">Hear what other diners have to say about their experience.</p>
+                </div>
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="bg-brown-900 text-gold-500 px-6 py-2.5 rounded-full font-bold hover:bg-gold-500 hover:text-brown-900 transition-all text-sm shadow-md cursor-pointer"
+                >
+                  Write a Review
+                </button>
+              </div>
+
+              {/* Summary Scorecard */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-cream-50/20 p-6 rounded-2xl border border-gold-500/5">
+                <div className="flex flex-col items-center justify-center text-center p-4 border-b md:border-b-0 md:border-r border-gold-500/10">
+                  <span className="text-5xl font-bold font-serif text-brown-900">{averageRating}</span>
+                  <div className="flex gap-1 my-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={18}
+                        className={
+                          star <= Math.round(averageRating)
+                            ? 'text-gold-500 fill-gold-500'
+                            : 'text-gray-300'
+                        }
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-brown-600 font-medium">Based on {reviews.length} reviews</span>
+                </div>
+
+                <div className="md:col-span-2 space-y-2 flex flex-col justify-center">
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count = reviews.filter((r) => r.rating === stars).length;
+                    const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                    return (
+                      <div key={stars} className="flex items-center gap-3 text-xs">
+                        <span className="w-12 text-brown-700 font-semibold flex items-center gap-0.5 justify-end">
+                          {stars} <Star size={10} className="text-gold-500 fill-gold-500" />
+                        </span>
+                        <div className="flex-grow h-2 bg-cream-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gold-500 rounded-full"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-right text-brown-600 font-medium">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                {reviews.length === 0 ? (
+                   <p className="text-center text-sm text-brown-500 py-6">No reviews yet. Be the first to write one!</p>
+                ) : (
+                  reviews.map((rev) => (
+                    <div key={rev.id} className="p-4 rounded-xl border border-cream-200 bg-white shadow-sm space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-brown-900 text-sm">{rev.user?.name || 'Guest User'}</h4>
+                          <div className="flex gap-0.5 mt-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={12}
+                                className={
+                                  star <= rev.rating
+                                    ? 'text-gold-500 fill-gold-500'
+                                    : 'text-gray-200'
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-brown-500 font-light">{new Date(rev.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-xs text-brown-700 leading-relaxed font-light">{rev.comment}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
             {/* Premium Menu Modal */}
             <AnimatePresence>
               {isMenuOpen && (
@@ -204,6 +416,7 @@ const RestaurantDetail = () => {
                             placeholder="Search dishes..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            autoComplete="one-time-code"
                             className="w-full pl-8 pr-4 py-1.5 rounded-full border border-gold-500/20 bg-white text-xs text-brown-900 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all"
                           />
                         </div>
@@ -420,6 +633,87 @@ const RestaurantDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Write a Review Modal */}
+      <AnimatePresence>
+        {showReviewModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white max-w-md w-full p-8 rounded-3xl border border-gold-500/20 shadow-2xl space-y-4 text-brown-900 relative"
+            >
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-brown-900 transition cursor-pointer p-1"
+              >
+                <X size={20} />
+              </button>
+
+              <div>
+                <span className="text-xs uppercase font-bold tracking-wider text-gold-600 font-sans">Share your thoughts</span>
+                <h3 className="text-2xl font-serif font-bold text-brown-900 mt-0.5">Write a Review</h3>
+              </div>
+
+              <form onSubmit={handleAddReview} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-brown-700 mb-2 font-sans">
+                    Rating
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setUserRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="text-2xl transition cursor-pointer focus:outline-none"
+                      >
+                        <Star
+                          size={28}
+                          className={
+                            star <= (hoverRating || userRating)
+                              ? 'text-gold-500 fill-gold-500 scale-110 transition-transform'
+                              : 'text-gray-300'
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-cream-100/50 p-3 rounded-xl border border-cream-200">
+                  <span className="text-xs text-brown-500 font-sans block">Posting as</span>
+                  <span className="text-sm font-bold text-brown-900 font-sans">{user?.name || 'Guest User'}</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-brown-700 mb-1 font-sans">
+                    Review Comments
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    placeholder="What did you like or dislike about your experience?"
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    className="w-full px-4 py-2 border border-cream-300 rounded-xl text-sm outline-none focus:border-gold-500 transition-colors resize-none font-sans"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-brown-900 text-gold-500 py-3 rounded-xl text-sm font-bold hover:bg-brown-800 transition-colors cursor-pointer flex items-center justify-center gap-2 mt-2 font-sans"
+                >
+                  Submit Review
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

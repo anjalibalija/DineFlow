@@ -9,21 +9,34 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("user")
-  phone     String   @default("")
-  city      String   @default("")
-  profilePicture String @default("")
-  dietaryPreference String @default("")
-  createdAt DateTime @default(now())
+  id                String   @id @default(uuid())
+  name              String
+  email             String   @unique
+  password          String
+  role              String   @default("user")
+  phone             String   @default("")
+  profilePicture    String   @default("")
+  emailVerified     Boolean  @default(false)
+  verificationToken String   @default("")
+  loginAttempts     Int      @default(0)
+  lockUntil         DateTime?
+  twoFactorEnabled  Boolean  @default(false)
+  otpCode           String   @default("")
+  otpExpires        DateTime?
+  createdAt         DateTime @default(now())
+
+  bankAccountName     String?
+  bankAccountNumber   String?
+  bankIfsc            String?
+  bankName            String?
+  bankBranch          String?
+  bankAccountVerified Boolean  @default(false)
 
   bookings    Booking[]
   coupons     Coupon[]
   favorites   Favorite[]
   restaurants Restaurant[]
+  reviews     Review[]
 }
 
 model Restaurant {
@@ -56,6 +69,7 @@ model Restaurant {
   tables      RestaurantTable[]
   bookings    Booking[]
   favorites   Favorite[]
+  reviews     Review[]
 }
 
 model RestaurantTable {
@@ -65,11 +79,11 @@ model RestaurantTable {
   tableNumber  String
   category     String
   capacity     Int
+  description  String     @default("")
   bookingCount Int        @default(0)
   isBestseller Boolean    @default(false)
   positionX    Float      @default(0)
   positionY    Float      @default(0)
-  description  String     @default("")
 
   bookings     Booking[]
 }
@@ -114,4 +128,15 @@ model Favorite {
   createdAt    DateTime   @default(now())
 
   @@unique([userId, restaurantId])
+}
+
+model Review {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rating       Int
+  comment      String
+  createdAt    DateTime   @default(now())
 }

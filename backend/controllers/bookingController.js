@@ -108,7 +108,7 @@ exports.getAllBookings = async (req, res) => {
         restaurant: { adminId: req.user.id }
       },
       include: {
-        user: { select: { name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, phone: true } },
         restaurant: { select: { name: true } },
         table: { select: { tableNumber: true, category: true } }
       },

@@ -1,10 +1,14 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Utensils, LogOut, User, Shield, Settings } from 'lucide-react';
+import { Utensils, LogOut, User, Shield, LogIn, Calendar } from 'lucide-react';
 
 const Navbar = () => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, loading, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Hide user buttons on auth pages
+  const isAuthPage = ['/auth', '/user/signin', '/user/signup', '/admin/signin', '/admin/signup', '/profile', '/admin/profile'].includes(location.pathname);
 
   const handleLogout = () => {
     logout();
@@ -20,40 +24,42 @@ const Navbar = () => {
         </Link>
 
         <div className="flex items-center gap-6">
-          <Link to="/restaurants" className="text-brown-800 hover:text-gold-500 font-medium transition">
-            Restaurants
-          </Link>
-          {user ? (
+          {/* While auth is loading or on auth pages, show nothing */}
+          {loading || isAuthPage ? null : user ? (
             <>
-              {isAdmin ? (
-                <Link to="/admin/dashboard" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
-                  <Shield size={16} /> Dashboard
-                </Link>
-              ) : (
-                <Link to="/dashboard" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
-                  <User size={18} /> My Bookings
+              {/* Logged-in user links */}
+              {!isAdmin && (
+                <Link to="/restaurants" className="text-brown-800 hover:text-gold-500 font-medium transition">
+                  Restaurants
                 </Link>
               )}
-              <Link to="/profile" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
-                <Settings size={16} /> Profile
-              </Link>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={handleLogout}
-                  className="flex items-center gap-1 bg-brown-900 text-cream-100 px-4 py-2 rounded-full hover:bg-gold-500 hover:text-brown-900 transition-colors cursor-pointer"
-                >
-                  <LogOut size={16} /> Logout
-                </button>
-              </div>
+              {isAdmin ? (
+                <>
+                  <Link to="/admin/dashboard" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
+                    <Shield size={16} /> Dashboard
+                  </Link>
+                  <Link to="/admin/profile" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
+                    <User size={18} /> My Profile
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/dashboard" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
+                    <Calendar size={18} /> My Bookings
+                  </Link>
+                  <Link to="/profile" className="text-brown-800 hover:text-gold-500 font-medium transition flex items-center gap-1">
+                    <User size={18} /> My Profile
+                  </Link>
+                </>
+              )}
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-1 bg-brown-900 text-cream-100 px-4 py-2 rounded-full hover:bg-gold-500 hover:text-brown-900 transition-colors cursor-pointer"
+              >
+                <LogOut size={16} /> Logout
+              </button>
             </>
-          ) : (
-            <Link 
-              to="/auth" 
-              className="bg-brown-900 text-cream-100 px-6 py-2 rounded-full hover:bg-gold-500 hover:text-brown-900 transition-colors font-medium"
-            >
-              Sign In
-            </Link>
-          )}
+          ) : null}
         </div>
       </div>
     </nav>
@@ -61,3 +67,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+

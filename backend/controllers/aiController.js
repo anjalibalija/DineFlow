@@ -63,8 +63,8 @@ exports.getCrowdPrediction = async (req, res) => {
     const predictedQueueCount = Math.round(baseQueue * timeMultiplier * weekendMultiplier * popularityMultiplier);
     const predictedWaitMinutes = predictedQueueCount * 4; // average 4 mins wait per queue group
 
-    // Decide if queue is too long (5 or more groups)
-    const isQueueTooLong = predictedQueueCount >= 5;
+    // Decide if queue is too long (shown when restaurant crowd level is High or Full)
+    const isQueueTooLong = restaurant.crowdLevel === 'High' || restaurant.crowdLevel === 'Full';
 
     let prediction = "";
     if (isQueueTooLong) {
@@ -277,51 +277,35 @@ exports.geocodeAddress = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Address is required.' });
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.POSITIONSTACK_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ success: false, message: 'Google Maps API key is not configured.' });
+    return res.status(500).json({ success: false, message: 'Positionstack API key is not configured.' });
   }
 
   try {
     const axios = require('axios');
-    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+    const response = await axios.get('http://api.positionstack.com/v1/forward', {
       params: {
-        address: address,
-        key: apiKey
+        access_key: apiKey,
+        query: address,
+        limit: 1
       }
     });
 
-    if (response.data && response.data.status === 'OK' && response.data.results && response.data.results.length > 0) {
-      const result = response.data.results[0];
-      
-      let city = '';
-      let state = '';
-      if (result.address_components) {
-        for (const comp of result.address_components) {
-          if (comp.types.includes('locality')) {
-            city = comp.long_name;
-          } else if (!city && comp.types.includes('administrative_area_level_2')) {
-            city = comp.long_name;
-          }
-          if (comp.types.includes('administrative_area_level_1')) {
-            state = comp.long_name;
-          }
-        }
-      }
-
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      const result = response.data.data[0];
       res.status(200).json({
         success: true,
         data: {
-          latitude: result.geometry.location.lat,
-          longitude: result.geometry.location.lng,
-          label: result.formatted_address,
-          city: city,
-          state: state
+          latitude: result.latitude,
+          longitude: result.longitude,
+          label: result.label,
+          city: result.locality || result.city || '',
+          state: result.region || ''
         }
       });
     } else {
-      const statusMsg = response.data ? response.data.status : 'No data';
-      res.status(404).json({ success: false, message: `No location coordinates found for the given address (Status: ${statusMsg}).` });
+      res.status(404).json({ success: false, message: 'No location coordinates found for the given address.' });
     }
   } catch (err) {
     console.error('Geocoding error:', err.message);
@@ -335,49 +319,33 @@ exports.reverseGeocode = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Latitude and longitude are required.' });
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.POSITIONSTACK_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ success: false, message: 'Google Maps API key is not configured.' });
+    return res.status(500).json({ success: false, message: 'Positionstack API key is not configured.' });
   }
 
   try {
     const axios = require('axios');
-    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+    const response = await axios.get('http://api.positionstack.com/v1/reverse', {
       params: {
-        latlng: `${latitude},${longitude}`,
-        key: apiKey
+        access_key: apiKey,
+        query: `${latitude},${longitude}`,
+        limit: 1
       }
     });
 
-    if (response.data && response.data.status === 'OK' && response.data.results && response.data.results.length > 0) {
-      const result = response.data.results[0];
-      
-      let city = '';
-      let state = '';
-      if (result.address_components) {
-        for (const comp of result.address_components) {
-          if (comp.types.includes('locality')) {
-            city = comp.long_name;
-          } else if (!city && comp.types.includes('administrative_area_level_2')) {
-            city = comp.long_name;
-          }
-          if (comp.types.includes('administrative_area_level_1')) {
-            state = comp.long_name;
-          }
-        }
-      }
-
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      const result = response.data.data[0];
       res.status(200).json({
         success: true,
         data: {
-          city: city,
-          state: state,
-          label: result.formatted_address || ''
+          city: result.locality || result.city || '',
+          state: result.region || '',
+          label: result.label || ''
         }
       });
     } else {
-      const statusMsg = response.data ? response.data.status : 'No data';
-      res.status(404).json({ success: false, message: `No location details found for these coordinates (Status: ${statusMsg}).` });
+      res.status(404).json({ success: false, message: 'No location details found for these coordinates.' });
     }
   } catch (err) {
     console.error('Reverse geocoding error:', err.message);

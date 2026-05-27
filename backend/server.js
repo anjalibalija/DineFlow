@@ -30,6 +30,8 @@ const bookingRoutes = require('./routes/bookingRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 // Mount routers
 app.use('/api/auth', authRoutes);
@@ -41,6 +43,8 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api', couponRoutes); // /api/puzzle and /api/coupons
 app.use('/api/ai', aiRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/favorites', favoriteRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

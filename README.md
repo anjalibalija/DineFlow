@@ -1,4 +1,4 @@
-# DineFlow
+# TableMate AI
 
 Full-stack AI-based restaurant table booking platform.
 

@@ -222,6 +222,7 @@ const AiChatbot = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type message..."
+              autoComplete="one-time-code"
               className="flex-grow bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-cream-100 placeholder-cream-200/30 focus:outline-none focus:border-gold-500 transition-colors"
             />
             <button

@@ -12,7 +12,7 @@ const Field = ({ label, icon: Icon, name, type = 'text', placeholder, required, 
     <label className="block text-xs font-semibold text-brown-700/60 uppercase tracking-wider mb-1.5">{label}</label>
     <div className="relative">
       {Icon && <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />}
-      <input name={name} type={type} value={value} onChange={onChange} required={required}
+      <input name={name} type={type} value={value} onChange={onChange} required={required} autoComplete="one-time-code"
         className={`w-full ${Icon ? 'pl-9' : 'pl-3'} pr-3 py-2.5 border border-gray-200 rounded-xl text-sm text-brown-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all bg-white`}
         placeholder={placeholder} />
     </div>
@@ -32,7 +32,7 @@ const Select = ({ label, icon: Icon, name, options, half, value, onChange }) => 
   </div>
 );
 
-const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
+const EditRestaurantForm = ({ restaurant, onClose, onSuccess, isDemoMode = false }) => {
   const [form, setForm] = useState({
     name: restaurant.name || '', ownerName: restaurant.ownerName || '',
     email: restaurant.email || '', phone: restaurant.phone || '',
@@ -59,6 +59,17 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
     setGeocoding(true);
     setError('');
     try {
+      if (isDemoMode) {
+        await new Promise(r => setTimeout(r, 800));
+        setForm(prev => ({
+          ...prev,
+          latitude: "12.9716",
+          longitude: "77.5946",
+          city: prev.city || "Bengaluru",
+          state: prev.state || "Karnataka"
+        }));
+        return;
+      }
       const fullAddress = `${form.location}, ${form.city || ''}, ${form.state || ''} ${form.pincode || ''}`;
       const res = await axios.post('/api/ai/geocode', { address: fullAddress });
       if (res.data.success) {
@@ -76,6 +87,45 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
     } finally {
       setGeocoding(false);
     }
+  };
+
+  const handleRestaurantImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 600;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        setForm(prev => ({ ...prev, image: compressedBase64 }));
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleMenuImageUpload = (e) => {
@@ -96,6 +146,16 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
     if (!menuImage) return;
     setDigitizing(true);
     try {
+      if (isDemoMode) {
+        await new Promise(r => setTimeout(r, 1200));
+        const highlightString = "Truffle Naan Pizza (Bestseller): ₹450, Saffron Risotto (Main Course): ₹550, Butter Chicken Ravioli (Pasta): ₹480";
+        setForm(prev => ({
+          ...prev,
+          menuHighlights: highlightString
+        }));
+        setMenuImage(null);
+        return;
+      }
       const res = await axios.post('/api/ai/digitize-menu', {
         base64Image: menuImage.base64,
         mimeType: menuImage.mimeType,
@@ -103,7 +163,7 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
       });
       
       const items = res.data.data;
-      const highlightString = items.map(item => `${item.name}: ₹${item.price}`).join(', ');
+      const highlightString = items.map(item => `${item.name} (${item.category}): ₹${item.price}`).join(', ');
       setForm(prev => ({
         ...prev,
         menuHighlights: highlightString
@@ -111,7 +171,8 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
       setMenuImage(null);
     } catch (err) {
       console.error(err);
-      alert('Failed to digitize menu. Please try again.');
+      const errMsg = err.response?.data?.message || err.message || 'Please try again.';
+      alert(`Failed to digitize menu: ${errMsg}`);
     } finally {
       setDigitizing(false);
     }
@@ -124,6 +185,18 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
     setError('');
     setSubmitting(true);
     try {
+      if (isDemoMode) {
+        await new Promise(r => setTimeout(r, 1200));
+        const updatedRes = {
+          ...restaurant,
+          ...form,
+          latitude: form.latitude ? parseFloat(form.latitude) : restaurant.latitude,
+          longitude: form.longitude ? parseFloat(form.longitude) : restaurant.longitude,
+          queueCount: parseInt(form.queueCount || "0", 10)
+        };
+        onSuccess(updatedRes);
+        return;
+      }
       await axios.put(`/api/restaurants/${restaurant.id}`, form);
       onSuccess();
     } catch (err) {
@@ -194,7 +267,51 @@ const EditRestaurantForm = ({ restaurant, onClose, onSuccess }) => {
               <textarea name="description" value={form.description} onChange={handleChange} rows={3}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-brown-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500 transition-all bg-white resize-none" />
             </div>
-            <Field label="Image URL" icon={Image} name="image" value={form.image} onChange={handleChange} />
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-brown-700/60 uppercase tracking-wider mb-1.5">Restaurant Photo</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleRestaurantImageUpload}
+                className="hidden"
+                id="restaurant-photo-upload"
+              />
+              
+              <div className="relative w-full h-48 rounded-2xl border-2 border-dashed border-gray-200 hover:border-gold-500 transition-all overflow-hidden bg-gray-50 flex items-center justify-center group cursor-pointer">
+                {form.image ? (
+                  <>
+                    <img src={form.image} alt="Preview" className="w-full h-full object-cover" />
+                    <div 
+                      onClick={() => document.getElementById('restaurant-photo-upload').click()}
+                      className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-2"
+                    >
+                      <Image size={24} className="text-gold-500 animate-pulse" />
+                      <span className="text-xs font-semibold">Change Photo</span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setForm(prev => ({ ...prev, image: '' }));
+                      }}
+                      className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shadow-lg cursor-pointer z-10"
+                    >
+                      <X size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <div 
+                    onClick={() => document.getElementById('restaurant-photo-upload').click()}
+                    className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 hover:text-gold-500 transition-colors p-6 text-center"
+                  >
+                    <Image size={36} className="mb-2 text-gray-300 group-hover:text-gold-500 transition-colors" />
+                    <span className="text-sm font-bold text-brown-900/80">Click to Upload Photo</span>
+                    <span className="text-xs text-gray-400 mt-1">Opens file manager on desktop or gallery on mobile</span>
+                    <span className="text-[10px] text-gray-400 mt-2 bg-cream-100 px-2 py-0.5 rounded border border-gray-100">Supports JPG, PNG, WEBP</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-6">
